@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Web.Mvc;
 using Spark.Compiler;
@@ -13,7 +14,8 @@ namespace Spark.Web.Mvc
     {
         private ISparkViewEngine _engine;
 
-        public DefaultDescriptorBuilder() : this((string)null)
+        public DefaultDescriptorBuilder()
+            : this((string)null)
         {
         }
 
@@ -114,8 +116,8 @@ namespace Spark.Web.Mvc
             {
                 var whiteSpace0 = Rep(Ch(char.IsWhiteSpace));
                 var whiteSpace1 = Rep1(Ch(char.IsWhiteSpace));
-                var startOfElement = !string.IsNullOrEmpty(_prefix) ?  Ch("<" + _prefix + ":use"): Ch("<use");
-                var startOfAttribute =  Ch("master").And(whiteSpace0).And(Ch('=')).And(whiteSpace0);
+                var startOfElement = !string.IsNullOrEmpty(_prefix) ? Ch("<" + _prefix + ":use") : Ch("<use");
+                var startOfAttribute = Ch("master").And(whiteSpace0).And(Ch('=')).And(whiteSpace0);
                 var attrValue = Ch('\'').And(Rep(ChNot('\''))).And(Ch('\''))
                     .Or(Ch('\"').And(Rep(ChNot('\"'))).And(Ch('\"')));
 
@@ -131,15 +133,15 @@ namespace Spark.Web.Mvc
 
                 ParseUseMaster =
                     pos =>
+                    {
+                        for (var scan = pos; scan.PotentialLength() != 0; scan = scan.Advance(1))
                         {
-                            for (var scan = pos; scan.PotentialLength() != 0; scan = scan.Advance(1))
-                            {
-                                var result = useMaster(scan);
-                                if (result != null)
-                                    return result;
-                            }
-                            return null;
-                        };
+                            var result = useMaster(scan);
+                            if (result != null)
+                                return result;
+                        }
+                        return null;
+                    };
             }
 
             public ParseAction<string> ParseUseMaster { get; set; }
@@ -177,7 +179,7 @@ namespace Spark.Web.Mvc
             return false;
         }
 
-        private IEnumerable<string> ApplyFilters(IEnumerable<string> locations, IDictionary<string, object> extra)
+        protected IEnumerable<string> ApplyFilters(IEnumerable<string> locations, IDictionary<string, object> extra)
         {
             // apply all of the filters PotentialLocations in order
             return Filters.Aggregate(
@@ -187,10 +189,20 @@ namespace Spark.Web.Mvc
 
         protected virtual IEnumerable<string> PotentialViewLocations(string controllerName, string viewName, IDictionary<string, object> extra)
         {
+            if (extra.ContainsKey("area") && !string.IsNullOrEmpty(extra["area"] as string))
+            {
+                return ApplyFilters(new[]
+                                        {
+                                            string.Format("{0}{1}{2}.spark", controllerName, Path.DirectorySeparatorChar, viewName),
+                                            string.Format("Shared{0}{1}.spark", Path.DirectorySeparatorChar, viewName),
+                                            string.Format("~{0}Areas{0}{1}{0}Views{0}{2}{0}{3}.spark", Path.DirectorySeparatorChar, extra["area"], controllerName, viewName),
+                                            string.Format("~{0}Areas{0}{1}{0}Views{0}Shared{0}{2}.spark", Path.DirectorySeparatorChar, extra["area"], viewName)
+                                        }, extra);
+            }
             return ApplyFilters(new[]
                                     {
-                                        controllerName + "\\" + viewName + ".spark",
-                                        "Shared\\" + viewName + ".spark"
+                                        string.Format("{0}{1}{2}.spark", controllerName,Path.DirectorySeparatorChar, viewName),
+                                        string.Format("Shared{0}{1}.spark", Path.DirectorySeparatorChar,viewName)
                                     }, extra);
         }
 
@@ -198,8 +210,8 @@ namespace Spark.Web.Mvc
         {
             return ApplyFilters(new[]
                                     {
-                                        "Layouts\\" + masterName + ".spark",
-                                        "Shared\\" + masterName + ".spark"
+                                        string.Format("Layouts{0}{1}.spark", Path.DirectorySeparatorChar,masterName),
+                                        string.Format("Shared{0}{1}.spark", Path.DirectorySeparatorChar,masterName)
                                     }, extra);
         }
 
@@ -207,10 +219,10 @@ namespace Spark.Web.Mvc
         {
             return ApplyFilters(new[]
                                     {
-                                        "Layouts\\" + controllerName + ".spark",
-                                        "Shared\\" + controllerName + ".spark",
-                                        "Layouts\\Application.spark",
-                                        "Shared\\Application.spark"
+                                        string.Format("Layouts{0}{1}.spark", Path.DirectorySeparatorChar, controllerName),
+                                        string.Format("Shared{0}{1}.spark", Path.DirectorySeparatorChar, controllerName),
+                                        string.Format("Layouts{0}Application.spark", Path.DirectorySeparatorChar),
+                                        string.Format("Shared{0}Application.spark", Path.DirectorySeparatorChar)
                                     }, extra);
         }
     }

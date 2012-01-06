@@ -33,8 +33,6 @@ namespace Spark.Parser
 
     public class ViewLoader
     {
-        private const string TemplateFileExtension = ".spark";
-
         private readonly Dictionary<string, Entry> entries = new Dictionary<string, Entry>();
 
         private readonly List<string> pending = new List<string>();
@@ -80,15 +78,15 @@ namespace Spark.Parser
             {
                 return null;
             }
-
+			
             // import _global.spark files from template path and shared path
-            var perFolderGlobal = Path.Combine(Path.GetDirectoryName(viewPath), "_global.spark");
+            var perFolderGlobal = Path.Combine(Path.GetDirectoryName(viewPath), Constants.GlobalSpark);
             if (this.ViewFolder.HasView(perFolderGlobal))
             {
                 this.BindEntry(perFolderGlobal);
             }
 
-            var sharedGlobal = Path.Combine("Shared", "_global.spark");
+            var sharedGlobal = Path.Combine(Constants.Shared, Constants.GlobalSpark);
             if (this.ViewFolder.HasView(sharedGlobal))
             {
                 this.BindEntry(sharedGlobal);
@@ -139,7 +137,7 @@ namespace Spark.Parser
                 viewPath = Path.GetDirectoryName(viewPath);
 
                 yield return viewPath;
-                yield return Path.Combine(viewPath, "Shared");
+                yield return Path.Combine(viewPath, Constants.Shared);
             }
             while (!String.IsNullOrEmpty(viewPath));
         }
@@ -153,11 +151,11 @@ namespace Spark.Parser
         {
             var needsSparkExtension = string.Equals(
                 Path.GetExtension(viewName),
-                TemplateFileExtension,
+                Constants.DotSpark,
                 StringComparison.OrdinalIgnoreCase) == false;
 
             return needsSparkExtension
-                ? viewName + TemplateFileExtension
+                ? viewName + Constants.DotSpark
                 : viewName;
         }
 
@@ -196,7 +194,7 @@ namespace Spark.Parser
                 Prefix = this.Prefix,
                 ExtensionFactory = this.ExtensionFactory,
                 PartialFileNames = this.FindPartialFiles(viewPath),
-                Bindings = this.FindBindings(),
+                Bindings = this.FindBindings(viewPath),
                 ParseSectionTagAsSegment = this.ParseSectionTagAsSegment
             };
             newEntry.Chunks = this.SyntaxProvider.GetChunks(context, viewPath);
@@ -238,14 +236,14 @@ namespace Spark.Parser
             }
         }
 
-        private IEnumerable<Binding> FindBindings()
+        private IEnumerable<Binding> FindBindings(string viewPath)
         {
             if (this.BindingProvider == null)
             {
                 return new Binding[0];
             }
 
-            return this.BindingProvider.GetBindings(this.ViewFolder);
+            return this.BindingProvider.GetBindings(new BindingRequest(this.ViewFolder){ViewPath = viewPath});
         }
 
         private string ResolveReference(string existingViewPath, string viewName)

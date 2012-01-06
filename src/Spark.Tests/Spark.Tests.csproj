@@ -111,7 +111,6 @@
     <Compile Include="Spool\SpoolWriterTester.cs" />
     <Compile Include="Stubs\StubCacheService.cs" />
     <Compile Include="Stubs\StubSparkView2.cs" />
-    <Compile Include="UseMasterTester.cs" />
     <Compile Include="ValueHolderTester.cs" />
     <Compile Include="Visitors\BaseVisitorTester.cs" />
     <Compile Include="BatchCompilationTester.cs" />
@@ -453,6 +452,11 @@
       <ProductName>Windows Installer 3.1</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Spark.Tests.Views\Home\ignore.spark">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

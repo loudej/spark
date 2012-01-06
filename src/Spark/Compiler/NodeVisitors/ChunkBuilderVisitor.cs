@@ -102,12 +102,11 @@ namespace Spark.Compiler.NodeVisitors
                                       {"render", VisitRender},
                                       {"segment", VisitSection},
                                       {"cache", VisitCache},
-                                      {"markdown", VisitMarkdown}
+                                      {"markdown", VisitMarkdown},
+                                      {"ignore", VisitIgnore}
                                   };
             if(context.ParseSectionTagAsSegment) _specialNodeMap.Add("section", VisitSection);
         }
-
-
 
         private Position Locate(Node expressionNode)
         {
@@ -172,17 +171,6 @@ namespace Spark.Compiler.NodeVisitors
             }
         }
 
-        private void AddKillingWhitespace(Chunk chunk)
-        {
-            var sendLiteral = Chunks.LastOrDefault() as SendLiteralChunk;
-            if (sendLiteral != null && sendLiteral.Text.Trim() == string.Empty)
-            {
-                Chunks.Remove(sendLiteral);
-            }
-            Chunks.Add(chunk);
-        }
-
-
         protected override void Visit(EntityNode entityNode)
         {
             AddLiteral("&" + entityNode.Name + ";");
@@ -199,15 +187,11 @@ namespace Spark.Compiler.NodeVisitors
             });
         }
 
-
-
         protected override void Visit(StatementNode node)
         {
             //REFACTOR: what is UnarmorCode doing at this point?
-            AddKillingWhitespace(new CodeStatementChunk { Code = node.Code, Position = Locate(node) });
+            Chunks.Add(new CodeStatementChunk { Code = node.Code, Position = Locate(node) });
         }
-
-
         protected override void Visit(DoctypeNode docTypeNode)
         {
             //[28]   	doctypedecl	   ::=   	'<!DOCTYPE' S  Name (S  ExternalID)? S? ('[' intSubset ']' S?)? '>'
@@ -380,7 +364,7 @@ namespace Spark.Compiler.NodeVisitors
                                      {
                                          Condition = conditionNode.Code,
                                          Type = ConditionalType.If,
-                                         Position = Locate(conditionNode)                                         
+                                         Position = Locate(conditionNode)
                                      };
             Chunks.Add(conditionChunk);
 
@@ -878,6 +862,11 @@ namespace Spark.Compiler.NodeVisitors
             }
         }
 
+        private void VisitIgnore(SpecialNode specialNode, SpecialNodeInspector inspector)
+        {
+            Accept(specialNode.Body);
+        }
+
         private bool SatisfyElsePrecondition()
         {
             var lastChunk = Chunks.LastOrDefault();
@@ -918,8 +907,5 @@ namespace Spark.Compiler.NodeVisitors
             using (new Frame(this, extensionChunk.Body))
                 extensionNode.Extension.VisitNode(this, extensionNode.Body, Chunks);
         }
-
-
-
     }
 }

@@ -26,7 +26,7 @@ namespace Spark.Tests
     using System.Collections.Generic;
     using System.Text;
     using NUnit.Framework;
-    using NUnit.Framework.SyntaxHelpers;
+
     using Rhino.Mocks;
     using Spark.Compiler;
     using Spark.FileSystem;
@@ -74,7 +74,7 @@ namespace Spark.Tests
         {
             mocks.ReplayAll();
 
-            factory.RenderView(MakeViewContext("index", null));
+            factory.RenderView(MakeViewContext("Index", null));
 
             mocks.VerifyAll();
         }
@@ -142,23 +142,6 @@ namespace Spark.Tests
             Assert.That(content.Contains("<p>footer part two</p>"));
         }
 
-
-
-
-        [Test, Ignore("Library no longer references asp.net mvc directly")]
-        public void UsingHtmlHelper()
-        {
-
-            mocks.ReplayAll();
-
-            factory.RenderView(MakeViewContext("helpers", null));
-
-            mocks.VerifyAll();
-            string content = sb.ToString();
-            Assert.That(content.Contains("<p><a href=\"/Home/Sort\">Click me</a></p>"));
-            Assert.That(content.Contains("<p>foo&gt;bar</p>"));
-        }
-
         [Test]
         public void UsingPartialFile()
         {
@@ -202,23 +185,6 @@ namespace Spark.Tests
             string content = sb.ToString();
             Assert.That(content.Contains("<li class=\"odd\">one</li>"));
             Assert.That(content.Contains("<li class=\"even\">two</li>"));
-        }
-
-
-        [Test, Ignore("Library no longer references asp.net mvc directly")]
-        public void DeclaringViewDataAccessor()
-        {
-            mocks.ReplayAll();
-            //var comments = new[] { new Comment { Text = "foo" }, new Comment { Text = "bar" } };
-            var viewContext = MakeViewContext("viewdata", null/*, new { Comments = comments, Caption = "Hello world" }*/);
-
-            factory.RenderView(viewContext);
-
-            mocks.VerifyAll();
-            string content = sb.ToString();
-            Assert.That(content.Contains("<h1>Hello world</h1>"));
-            Assert.That(content.Contains("<p>foo</p>"));
-            Assert.That(content.Contains("<p>bar</p>"));
         }
 
         [Test]
@@ -589,13 +555,13 @@ namespace Spark.Tests
         }
 
 
-        [Test, ExpectedException(typeof(CompilerException))]
+        [Test]
         public void AddViewDataDifferentTypes()
         {
             mocks.ReplayAll();
             var viewData = new StubViewData { { "comment", new Comment { Text = "Hello world" } } };
             var viewContext = MakeViewContext("addviewdatadifferenttypes", null, viewData);
-            factory.RenderView(viewContext);
+            Assert.That(() => factory.RenderView(viewContext), Throws.TypeOf<CompilerException>());
             mocks.VerifyAll();
         }
 
@@ -1116,12 +1082,14 @@ namespace Spark.Tests
 
         }
 
-        [Test, ExpectedException(typeof(CompilerException))]
+        [Test]
         public void RecursivePartialsThrowCompilerException()
         {
             mocks.ReplayAll();
             var viewContext = MakeViewContext("RecursivePartialsThrowCompilerException", null);
-            factory.RenderView(viewContext);
+            Assert.That(() =>
+                        factory.RenderView(viewContext),
+                        Throws.TypeOf<CompilerException>());
         }
 
 
@@ -1181,6 +1149,25 @@ namespace Spark.Tests
                 "all contain trailing spaces", "</code></pre>",
                 "<p>", "Regular Text.", "</p>",
                 "<pre><code>", "code block on the last line", "</code></pre>"));
+        }
+
+        [Test]
+        public void Ignore()
+        {
+            mocks.ReplayAll();
+            var viewContext = MakeViewContext("ignore", null);
+            factory.RenderView(viewContext);
+            mocks.VerifyAll();
+
+            string content = sb.ToString();
+
+            Assert.That(content, Contains.InOrder(
+                "<div>",
+                "Regular text ${This.isnt.code < 0}",
+                "<var dummy=\"This isn't a variable\" />",
+                "</div>"));
+            Assert.IsFalse(content.Contains("<ignore>"));
+            Assert.IsFalse(content.Contains("</ignore>"));
         }
     }
 }
