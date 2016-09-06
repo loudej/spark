@@ -20,6 +20,7 @@ using System.Text;
 using NUnit.Framework;
 using Spark.Bindings;
 using Spark.FileSystem;
+using System.IO;
 
 namespace Spark.Tests
 {
@@ -32,13 +33,19 @@ namespace Spark.Tests
             var container = new SparkServiceContainer();
 
             var langauageFactory = container.GetService<ISparkLanguageFactory>();
-            Assert.IsInstanceOfType(typeof(DefaultLanguageFactory), langauageFactory);
+            Assert.IsInstanceOf(typeof(DefaultLanguageFactory), langauageFactory);
 
             var resourcePathManager = container.GetService<IResourcePathManager>();
-            Assert.IsInstanceOfType(typeof(DefaultResourcePathManager), resourcePathManager);
+            Assert.IsInstanceOf(typeof(DefaultResourcePathManager), resourcePathManager);
 
             var bindingProvider = container.GetService<IBindingProvider>();
-            Assert.IsInstanceOfType(typeof(DefaultBindingProvider), bindingProvider);
+            Assert.IsInstanceOf(typeof(DefaultBindingProvider), bindingProvider);
+
+            var partialProvider = container.GetService<IPartialProvider>();
+            Assert.IsInstanceOf(typeof(DefaultPartialProvider), partialProvider);
+
+            var partialReferenceProvider = container.GetService<IPartialReferenceProvider>();
+            Assert.IsInstanceOf(typeof(DefaultPartialReferenceProvider), partialReferenceProvider);
         }
 
         [Test]
@@ -65,7 +72,7 @@ namespace Spark.Tests
         {
             var container = new SparkServiceContainer();
             container.SetService<ISparkExtensionFactory>(new StubExtensionFactory());
-            Assert.IsInstanceOfType(typeof(StubExtensionFactory), container.GetService<ISparkExtensionFactory>());
+            Assert.IsInstanceOf(typeof(StubExtensionFactory), container.GetService<ISparkExtensionFactory>());
         }
 
         [Test]
@@ -85,7 +92,7 @@ namespace Spark.Tests
             var container = new SparkServiceContainer();
             container.SetServiceBuilder(typeof(ITestService), c => new TestService());
             var service = container.GetService<ITestService>();
-            Assert.IsInstanceOfType(typeof(TestService), service);
+            Assert.IsInstanceOf(typeof(TestService), service);
             Assert.IsTrue(((TestService)service).Initialized);
         }
 
@@ -94,15 +101,15 @@ namespace Spark.Tests
         {
             var settings = new SparkSettings();
             settings.AddViewFolder(typeof(TestViewFolder),
-                                   new Dictionary<string, string> { { "testpath", "hello\\world.spark" } });
+                                   new Dictionary<string, string> { { "testpath", Path.Combine("hello", "world.spark") } });
 
             var container = new SparkServiceContainer(settings);
             container.SetServiceBuilder<IViewActivatorFactory>(c=>new TestActivatorFactory());
 
             var engine = container.GetService<ISparkViewEngine>();
-            Assert.IsInstanceOfType(typeof(TestActivatorFactory), engine.ViewActivatorFactory);
+            Assert.IsInstanceOf(typeof(TestActivatorFactory), engine.ViewActivatorFactory);
 
-            Assert.IsTrue(engine.ViewFolder.HasView("hello\\world.spark"));
+            Assert.IsTrue(engine.ViewFolder.HasView(Path.Combine("hello", "world.spark")));
         }
     }
 

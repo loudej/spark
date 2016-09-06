@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // 
+using System.IO;
+
 namespace Castle.MonoRail.Views.Spark.Tests
 {
     using System;
@@ -44,20 +46,27 @@ namespace Castle.MonoRail.Views.Spark.Tests
         }
 
         [Test]
-        [ExpectedException(typeof(ArgumentNullException))]
         public void NullBehaviourConfiguredToStrict_RegularConstruct()
         {
             mocks.ReplayAll();
-            manager.Process("Home\\NullBehaviourConfiguredToStrict_RegularConstruct", output, engineContext, controller, controllerContext);
+            Assert.That(() =>
+            manager.Process(
+                string.Format("Home{0}NullBehaviourConfiguredToStrict_RegularConstruct", Path.DirectorySeparatorChar),
+                output, engineContext, controller, controllerContext),
+                Throws.TypeOf<ArgumentNullException>());
             Console.WriteLine(output.ToString());
         }
 
         [Test]
-        [ExpectedException(typeof(ArgumentNullException))]
         public void NullBehaviourConfiguredToStrict_SuppressNullsConstruct()
         {
             mocks.ReplayAll();
-            manager.Process("Home\\NullBehaviourConfiguredToStrict_SuppressNullsConstruct", output, engineContext, controller, controllerContext);
+            Assert.That(() =>
+                        manager.Process(
+                            string.Format("Home{0}NullBehaviourConfiguredToStrict_SuppressNullsConstruct",
+                                          Path.DirectorySeparatorChar), output, engineContext, controller,
+                            controllerContext),
+                        Throws.TypeOf<ArgumentNullException>());
             Console.WriteLine(output.ToString());
         }
     }

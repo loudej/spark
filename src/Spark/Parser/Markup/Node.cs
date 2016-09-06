@@ -70,20 +70,23 @@ namespace Spark.Parser.Markup
 
     public class AttributeNode : Node
     {
-        public AttributeNode(string name, IList<Node> nodes)
+        public AttributeNode(string name, char quotChar, IList<Node> nodes)
         {
             Name = name;
+            QuotChar = quotChar;
             Namespace = "";
             Nodes = nodes;
         }
         public AttributeNode(string name, string value)
         {
             Name = name;
+            QuotChar = '"';
             Namespace = "";
             Nodes = new List<Node>(new[] { new TextNode(value) });
         }
 
         public string Name;
+        public char QuotChar;
         public string Namespace { get; set; }
         public IList<Node> Nodes;
 
@@ -267,5 +270,19 @@ namespace Spark.Parser.Markup
         public ElementNode Element;
         public ISparkExtension Extension { get; set; }
         public IList<Node> Body = new List<Node>();
+    }
+
+    public class IndentationNode : Node
+    {
+        public IndentationNode(ICollection<char> text)
+        {
+            Whitespace = new string(text.ToArray());
+        }
+        public IndentationNode(string whitespace)
+        {
+            Whitespace = whitespace;
+        }
+
+        public string Whitespace;
     }
 }

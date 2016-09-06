@@ -18,6 +18,8 @@
 // <author>John Gietzen</author>
 //-------------------------------------------------------------------------
 
+using Spark.Parser.Offset;
+
 namespace Spark.Parser.Syntax
 {
     using System;
@@ -31,11 +33,11 @@ namespace Spark.Parser.Syntax
 
     public class DefaultSyntaxProvider : AbstractSyntaxProvider
     {
-        private readonly MarkupGrammar _grammar;
+        private readonly OffsetGrammar _grammar;
 
         public DefaultSyntaxProvider(IParserSettings settings)
         {
-            _grammar = new MarkupGrammar(settings);
+            _grammar = new OffsetGrammar(settings);
         }
 
         public override IList<Chunk> GetChunks(VisitorContext context, string path)
@@ -45,8 +47,11 @@ namespace Spark.Parser.Syntax
 
             var sourceContext = CreateSourceContext(context.ViewPath, context.ViewFolder);
             var position = new Position(sourceContext);
+            
+            var isShadeExtension = string.Equals(Path.GetExtension(path), Constants.DotShade, StringComparison.OrdinalIgnoreCase);
 
-            var result = _grammar.Nodes(position);
+            var parser = (isShadeExtension ? _grammar.OffsetNodes : _grammar.Nodes);
+            var result = parser(position);
             if (result.Rest.PotentialLength() != 0)
             {
                 ThrowParseException(context.ViewPath, position, result.Rest);
@@ -71,8 +76,9 @@ namespace Spark.Parser.Syntax
             var existingPath = context.ViewPath;
 
             var directoryPath = Path.GetDirectoryName(context.ViewPath);
-            var relativePath = path.Replace('/', '\\');
-            while (relativePath.StartsWith("..\\"))
+			
+			var relativePath = path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+            while (relativePath.StartsWith(string.Format("..{0}", Path.DirectorySeparatorChar)))
             {
                 directoryPath = Path.GetDirectoryName(directoryPath);
                 relativePath = relativePath.Substring(3);
@@ -137,6 +143,7 @@ namespace Spark.Parser.Syntax
         {
             return new INodeVisitor[]
                        {
+                           new IndentationVisitor(context),
                            new NamespaceVisitor(context),
                            new IncludeVisitor(context),
                            new PrefixExpandingVisitor(context),

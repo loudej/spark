@@ -96,18 +96,18 @@ namespace Spark.Compiler.NodeVisitors
                                       {"if", VisitIf},
                                       {"else", (n,i)=>VisitElse(i)},
                                       {"elseif", VisitElseIf},
+                                      {"unless", VisitUnless},
                                       {"content", (n,i)=>VisitContent(i)},
                                       {"use", VisitUse},
                                       {"macro", (n,i)=>VisitMacro(i)},
                                       {"render", VisitRender},
                                       {"segment", VisitSection},
                                       {"cache", VisitCache},
-                                      {"markdown", VisitMarkdown}
+                                      {"markdown", VisitMarkdown},
+                                      {"ignore", VisitIgnore}
                                   };
             if(context.ParseSectionTagAsSegment) _specialNodeMap.Add("section", VisitSection);
         }
-
-
 
         private Position Locate(Node expressionNode)
         {
@@ -172,17 +172,6 @@ namespace Spark.Compiler.NodeVisitors
             }
         }
 
-        private void AddKillingWhitespace(Chunk chunk)
-        {
-            var sendLiteral = Chunks.LastOrDefault() as SendLiteralChunk;
-            if (sendLiteral != null && sendLiteral.Text.Trim() == string.Empty)
-            {
-                Chunks.Remove(sendLiteral);
-            }
-            Chunks.Add(chunk);
-        }
-
-
         protected override void Visit(EntityNode entityNode)
         {
             AddLiteral("&" + entityNode.Name + ";");
@@ -199,14 +188,15 @@ namespace Spark.Compiler.NodeVisitors
             });
         }
 
-
-
         protected override void Visit(StatementNode node)
         {
             //REFACTOR: what is UnarmorCode doing at this point?
-            AddKillingWhitespace(new CodeStatementChunk { Code = node.Code, Position = Locate(node) });
+            Chunks.Add(new CodeStatementChunk { Code = node.Code, Position = Locate(node) });
         }
 
+        protected override void Visit(IndentationNode node)
+        {            
+        }
 
         protected override void Visit(DoctypeNode docTypeNode)
         {
@@ -273,7 +263,15 @@ namespace Spark.Compiler.NodeVisitors
             foreach (var attribute in node.Attributes)
                 Accept(attribute);
 
-            AddLiteral(node.IsEmptyElement ? "/>" : ">");
+            if (node.IsEmptyElement)
+            {
+                bool isVoidElement = voidElements.Contains(node.Name);
+                AddLiteral(isVoidElement ? "/>" : "></" + node.Name + ">");
+            }
+            else
+            {
+                AddLiteral(">");
+            }
         }
 
         protected override void Visit(AttributeNode attributeNode)
@@ -307,10 +305,10 @@ namespace Spark.Compiler.NodeVisitors
             if (allNodesAreConditional == false || processedNodes.Any() == false)
             {
                 // This attribute may not disapper - send it literally
-                AddLiteral(" " + attributeNode.Name + "=\"");
+                AddLiteral(string.Format(" {0}={1}", attributeNode.Name, attributeNode.QuotChar));
                 foreach (var node in processedNodes)
                     Accept(node);
-                AddLiteral("\"");
+                AddLiteral(attributeNode.QuotChar.ToString());
             }
             else
             {
@@ -374,13 +372,33 @@ namespace Spark.Compiler.NodeVisitors
         private ConditionalChunk _sendAttributeOnce;
         private Chunk _sendAttributeIncrement;
 
+        private static readonly string[] voidElements = new[]
+        {
+            "area",
+            "base",
+            "br",
+            "col",
+            "command",
+            "embed",
+            "hr",
+            "img",
+            "input",
+            "keygen",
+            "link",
+            "meta",
+            "param",
+            "source",
+            "track",
+            "wbr"
+        };
+
         protected override void Visit(ConditionNode conditionNode)
         {
             var conditionChunk = new ConditionalChunk
                                      {
                                          Condition = conditionNode.Code,
                                          Type = ConditionalType.If,
-                                         Position = Locate(conditionNode)                                         
+                                         Position = Locate(conditionNode)
                                      };
             Chunks.Add(conditionChunk);
 
@@ -431,6 +449,13 @@ namespace Spark.Compiler.NodeVisitors
             return Context.SyntaxProvider.ParseFragment(begin, end);
         }
 
+        Snippets AsTextOrientedCode(AttributeNode attr)
+        {
+            return Context.AttributeBehaviour == AttributeBehaviour.CodeOriented 
+                ? AsCode(attr) 
+                : attr.AsCodeInverted();
+        }
+
         private void VisitMacro(SpecialNodeInspector inspector)
         {
             var name = inspector.TakeAttribute("name");
@@ -457,7 +482,7 @@ namespace Spark.Compiler.NodeVisitors
                 {
                     foreach (var attr in inspector.Attributes)
                     {
-                        Chunks.Add(new LocalVariableChunk { Name = attr.Name, Value = AsCode(attr), Position = Locate(attr) });
+                        Chunks.Add(new LocalVariableChunk { Name = attr.Name, Value = AsTextOrientedCode(attr), Position = Locate(attr) });
                     }
 
                     var useFileChunk = new RenderPartialChunk { Name = file.Value, Position = Locate(inspector.OriginalNode) };
@@ -533,7 +558,7 @@ namespace Spark.Compiler.NodeVisitors
                 {
                     foreach (var attr in inspector.Attributes)
                     {
-                        Chunks.Add(new LocalVariableChunk { Name = attr.Name, Value = AsCode(attr), Position = Locate(attr) });
+                        Chunks.Add(new LocalVariableChunk { Name = attr.Name, Value = AsTextOrientedCode(attr), Position = Locate(attr) });
                     }
 
                     var renderPartial = new RenderPartialChunk { Name = partial.Value, Position = Locate(inspector.OriginalNode) };
@@ -562,7 +587,7 @@ namespace Spark.Compiler.NodeVisitors
                 {
                     foreach (var attr in inspector.Attributes)
                     {
-                        Chunks.Add(new LocalVariableChunk { Name = attr.Name, Value = AsCode(attr), Position = Locate(attr) });
+                        Chunks.Add(new LocalVariableChunk { Name = attr.Name, Value = AsTextOrientedCode(attr), Position = Locate(attr) });
                     }
                     var render = new RenderSectionChunk { Name = sectionName };
                     Chunks.Add(render);
@@ -755,6 +780,16 @@ namespace Spark.Compiler.NodeVisitors
                 Accept(specialNode.Body);
         }
 
+        private void VisitUnless(SpecialNode specialNode, SpecialNodeInspector inspector)
+        {
+            var conditionAttr = inspector.TakeAttribute("condition") ?? inspector.TakeAttribute("unless");
+
+            var unlessChunk = new ConditionalChunk { Type = ConditionalType.Unless, Condition = AsCode(conditionAttr), Position = Locate(inspector.OriginalNode) };
+            Chunks.Add(unlessChunk);
+            using (new Frame(this, unlessChunk.Body))
+                Accept(specialNode.Body);
+        }
+
         private void VisitFor(SpecialNode specialNode, SpecialNodeInspector inspector)
         {
             var eachAttr = inspector.TakeAttribute("each");
@@ -776,7 +811,7 @@ namespace Spark.Compiler.NodeVisitors
         {
             foreach (var attr in inspector.Attributes)
             {
-                Chunks.Add(new AssignVariableChunk { Name = attr.Name, Value = AsCode(attr), Position = Locate(attr) });
+                Chunks.Add(new AssignVariableChunk { Name = attr.Name, Value = AsTextOrientedCode(attr), Position = Locate(attr) });
             }
         }
 
@@ -785,7 +820,7 @@ namespace Spark.Compiler.NodeVisitors
             var defaultAttr = inspector.TakeAttribute("default");
             Snippets defaultValue = null;
             if (defaultAttr != null)
-                defaultValue = AsCode(defaultAttr);
+                defaultValue = AsTextOrientedCode(defaultAttr);
 
             var modelAttr = inspector.TakeAttribute("model");
             if (modelAttr != null)
@@ -815,7 +850,7 @@ namespace Spark.Compiler.NodeVisitors
 
             foreach (var attr in specialNode.Element.Attributes.Where(a => a != typeAttr))
             {
-                AddUnordered(new GlobalVariableChunk { Type = type, Name = attr.Name, Value = AsCode(attr) });
+                AddUnordered(new GlobalVariableChunk { Type = type, Name = attr.Name, Value = AsTextOrientedCode(attr) });
             }
         }
 
@@ -834,7 +869,7 @@ namespace Spark.Compiler.NodeVisitors
 
             foreach (var attr in inspector.Attributes)
             {
-                Chunks.Add(new LocalVariableChunk { Type = type, Name = attr.Name, Value = AsCode(attr), Position = Locate(attr) });
+                Chunks.Add(new LocalVariableChunk { Type = type, Name = attr.Name, Value = AsTextOrientedCode(attr), Position = Locate(attr) });
             }
 
             Accept(specialNode.Body);
@@ -858,7 +893,7 @@ namespace Spark.Compiler.NodeVisitors
 
             foreach (var attr in inspector.Attributes)
             {
-                Chunks.Add(new DefaultVariableChunk { Type = type, Name = attr.Name, Value = AsCode(attr), Position = Locate(attr) });
+                Chunks.Add(new DefaultVariableChunk { Type = type, Name = attr.Name, Value = AsTextOrientedCode(attr), Position = Locate(attr) });
             }
 
             Accept(specialNode.Body);
@@ -876,6 +911,11 @@ namespace Spark.Compiler.NodeVisitors
             {
                 Accept(inspector.Body);
             }
+        }
+
+        private void VisitIgnore(SpecialNode specialNode, SpecialNodeInspector inspector)
+        {
+            Accept(specialNode.Body);
         }
 
         private bool SatisfyElsePrecondition()
@@ -918,8 +958,5 @@ namespace Spark.Compiler.NodeVisitors
             using (new Frame(this, extensionChunk.Body))
                 extensionNode.Extension.VisitNode(this, extensionNode.Body, Chunks);
         }
-
-
-
     }
 }

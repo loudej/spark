@@ -33,15 +33,16 @@ namespace Spark.Parser
 
     public class ViewLoader
     {
-        private const string TemplateFileExtension = ".spark";
-
         private readonly Dictionary<string, Entry> entries = new Dictionary<string, Entry>();
 
         private readonly List<string> pending = new List<string>();
 
+        private IPartialProvider partialProvider;
+        private IPartialReferenceProvider partialReferenceProvider;
+
         public IViewFolder ViewFolder { get; set; }
 
-        public ParseAction<IList<Node>> Parser { get; set; }
+        //public ParseAction<IList<Node>> Parser { get; set; }
 
         public ISparkExtensionFactory ExtensionFactory { get; set; }
 
@@ -51,7 +52,35 @@ namespace Spark.Parser
 
         public bool ParseSectionTagAsSegment { get; set; }
 
+        public AttributeBehaviour AttributeBehaviour { get; set; }
+
         public IBindingProvider BindingProvider { get; set; }
+
+        public IPartialProvider PartialProvider
+        {
+            get
+            {
+                if (partialProvider == null)
+                {
+                    partialProvider = new DefaultPartialProvider();
+                };
+                return partialProvider;
+            }
+            set { partialProvider = value; }
+        }
+
+        public IPartialReferenceProvider PartialReferenceProvider
+        {
+            get
+            {
+                if (partialReferenceProvider == null)
+                {
+                    partialReferenceProvider = new DefaultPartialReferenceProvider(() => PartialProvider);
+                };
+                return partialReferenceProvider;
+            }
+            set { partialReferenceProvider = value; }
+        }
 
         /// <summary>
         /// Returns a value indicating whether this view loader is current.
@@ -82,13 +111,13 @@ namespace Spark.Parser
             }
 
             // import _global.spark files from template path and shared path
-            var perFolderGlobal = Path.Combine(Path.GetDirectoryName(viewPath), "_global.spark");
+            var perFolderGlobal = Path.Combine(Path.GetDirectoryName(viewPath), Constants.GlobalSpark);
             if (this.ViewFolder.HasView(perFolderGlobal))
             {
                 this.BindEntry(perFolderGlobal);
             }
 
-            var sharedGlobal = Path.Combine("Shared", "_global.spark");
+            var sharedGlobal = Path.Combine(Constants.Shared, Constants.GlobalSpark);
             if (this.ViewFolder.HasView(sharedGlobal))
             {
                 this.BindEntry(sharedGlobal);
@@ -122,7 +151,7 @@ namespace Spark.Parser
         /// <returns>All partial files available.</returns>
         public IList<string> FindPartialFiles(string viewPath)
         {
-            var folderPaths = PartialViewFolderPaths(viewPath);
+            var folderPaths = PartialViewFolderPaths(viewPath, false);
             var partialNames = this.FindAllPartialFiles(folderPaths);
             return partialNames.Distinct().ToList().AsReadOnly();
         }
@@ -132,16 +161,16 @@ namespace Spark.Parser
         /// </summary>
         /// <param name="viewPath">The view path for which to return partial view paths.</param>
         /// <returns>The full list of possible partial view paths.</returns>
-        private static IEnumerable<string> PartialViewFolderPaths(string viewPath)
+        private IEnumerable<string> PartialViewFolderPaths(string viewPath, bool allowCustomReferencePath)
         {
-            do
+            if (allowCustomReferencePath)
             {
-                viewPath = Path.GetDirectoryName(viewPath);
-
-                yield return viewPath;
-                yield return Path.Combine(viewPath, "Shared");
+                return this.PartialReferenceProvider.GetPaths(viewPath, allowCustomReferencePath);
             }
-            while (!String.IsNullOrEmpty(viewPath));
+            else
+            {
+                return this.PartialProvider.GetPaths(viewPath);
+            }
         }
 
         /// <summary>
@@ -153,11 +182,23 @@ namespace Spark.Parser
         {
             var needsSparkExtension = string.Equals(
                 Path.GetExtension(viewName),
-                TemplateFileExtension,
+                Constants.DotSpark,
                 StringComparison.OrdinalIgnoreCase) == false;
 
             return needsSparkExtension
-                ? viewName + TemplateFileExtension
+                ? viewName + Constants.DotSpark
+                : viewName;
+        }
+
+        private static string EnsureShadeExtension(string viewName)
+        {
+            var needsSparkExtension = string.Equals(
+                Path.GetExtension(viewName),
+                Constants.DotShade,
+                StringComparison.OrdinalIgnoreCase) == false;
+
+            return needsSparkExtension
+                ? viewName + Constants.DotShade
                 : viewName;
         }
 
@@ -196,8 +237,9 @@ namespace Spark.Parser
                 Prefix = this.Prefix,
                 ExtensionFactory = this.ExtensionFactory,
                 PartialFileNames = this.FindPartialFiles(viewPath),
-                Bindings = this.FindBindings(),
-                ParseSectionTagAsSegment = this.ParseSectionTagAsSegment
+                Bindings = this.FindBindings(viewPath),
+                ParseSectionTagAsSegment = this.ParseSectionTagAsSegment,
+                AttributeBehaviour = this.AttributeBehaviour,
             };
             newEntry.Chunks = this.SyntaxProvider.GetChunks(context, viewPath);
 
@@ -238,22 +280,28 @@ namespace Spark.Parser
             }
         }
 
-        private IEnumerable<Binding> FindBindings()
+        private IEnumerable<Binding> FindBindings(string viewPath)
         {
             if (this.BindingProvider == null)
             {
                 return new Binding[0];
             }
 
-            return this.BindingProvider.GetBindings(this.ViewFolder);
+            return this.BindingProvider.GetBindings(new BindingRequest(this.ViewFolder) { ViewPath = viewPath });
         }
 
         private string ResolveReference(string existingViewPath, string viewName)
         {
-            var viewNameWithExtension = EnsureSparkExtension(viewName);
-            var folderPaths = PartialViewFolderPaths(existingViewPath);
+            var viewNameWithSparkExtension = EnsureSparkExtension(viewName);
+            var viewNameWithShadeExtension = EnsureShadeExtension(viewName);
+            var folderPaths = PartialViewFolderPaths(existingViewPath, true);
 
-            var partialPaths = folderPaths.Select(x => Path.Combine(x, viewNameWithExtension));
+            var partialPaths = folderPaths.SelectMany(x => new[]
+            {
+                Path.Combine(x, viewNameWithSparkExtension),
+                Path.Combine(x, viewNameWithShadeExtension)
+            });
+
             var partialViewLocation = partialPaths.FirstOrDefault(x => this.ViewFolder.HasView(x));
 
             if (partialViewLocation == null)

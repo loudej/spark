@@ -17,8 +17,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
-using NUnit.Framework.SyntaxHelpers;
+
 using Spark.FileSystem;
+using System.IO;
 
 namespace Spark.Tests
 {
@@ -30,7 +31,7 @@ namespace Spark.Tests
         {
             var descriptor = new SparkViewDescriptor()
                 .SetLanguage(LanguageType.Javascript)
-                .AddTemplate("Clientside\\simple.spark");
+                .AddTemplate(Path.Combine("Clientside","simple.spark"));
 
             var engine = new SparkViewEngine { ViewFolder = new FileSystemViewFolder("Spark.Tests.Views") };
             var entry = engine.CreateEntry(descriptor);
@@ -44,7 +45,7 @@ namespace Spark.Tests
         {
             var descriptor = new SparkViewDescriptor()
                 .SetLanguage(LanguageType.Javascript)
-                .AddTemplate("Clientside\\AnonymousTypeBecomesHashLikeObject.spark");
+                .AddTemplate(Path.Combine("Clientside","AnonymousTypeBecomesHashLikeObject.spark"));
 
             var engine = new SparkViewEngine { ViewFolder = new FileSystemViewFolder("Spark.Tests.Views") };
             var entry = engine.CreateEntry(descriptor);
@@ -52,8 +53,8 @@ namespace Spark.Tests
             Assert.IsNotNull(entry.SourceCode);
             Assert.IsNotEmpty(entry.SourceCode);
 
-            Assert.That(entry.SourceCode, Text.Contains("x = {foo:\"bar\",quux:5}"));
-            Assert.That(entry.SourceCode, Text.Contains("HelloWorld({id:23,data:x})"));
+            Assert.That(entry.SourceCode, Is.StringContaining("x = {foo:\"bar\",quux:5}"));
+            Assert.That(entry.SourceCode, Is.StringContaining("HelloWorld({id:23,data:x})"));
 
         }
     }

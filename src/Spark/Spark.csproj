@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Spark</RootNamespace>
     <AssemblyName>Spark</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SignAssembly>false</SignAssembly>
     <AssemblyOriginatorKeyFile>..\SparkKey.snk</AssemblyOriginatorKeyFile>
@@ -44,6 +44,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -53,6 +54,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Retail|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -62,6 +64,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -88,6 +91,7 @@
     <Compile Include="Bindings\BindingNode.cs" />
     <Compile Include="Bindings\BindingPhrase.cs" />
     <Compile Include="Bindings\BindingProvider.cs" />
+    <Compile Include="Bindings\BindingRequest.cs" />
     <Compile Include="Bindings\IBindingProvider.cs" />
     <Compile Include="Bindings\DefaultBindingProvider.cs" />
     <Compile Include="CacheExpires.cs" />
@@ -100,13 +104,20 @@
     <Compile Include="Caching\TextWriterOriginator.cs" />
     <Compile Include="Compiler\BatchCompilerException.cs" />
     <Compile Include="Compiler\NodeVisitors\CacheAttributeVisitor.cs" />
+    <Compile Include="Compiler\NodeVisitors\IndentationVisitor.cs" />
     <Compile Include="Compiler\NodeVisitors\SpecialAttributeVisitorBase.cs" />
     <Compile Include="CompositeViewEntry.cs" />
     <Compile Include="AbstractSparkView.cs" />
+    <Compile Include="DefaultPartialReferenceProvider.cs" />
+    <Compile Include="FastViewActivator.cs" />
     <Compile Include="ICacheService.cs" />
     <Compile Include="ICacheSignal.cs" />
+    <Compile Include="IPartialReferenceProvider.cs" />
     <Compile Include="NullCacheService.cs" />
     <Compile Include="Compiler\NodeVisitors\BindingExpansionVisitor.cs" />
+    <Compile Include="DefaultPartialProvider.cs" />
+    <Compile Include="IPartialProvider.cs" />
+    <Compile Include="Parser\Offset\OffsetGrammar.cs" />
     <Compile Include="SparkViewBase.cs" />
     <Compile Include="CompiledViewEntry.cs" />
     <Compile Include="CompiledViewHolder.cs" />
@@ -257,6 +268,7 @@
       <Install>true</Install>
     </BootstrapperPackage>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

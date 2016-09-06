@@ -241,6 +241,9 @@ namespace Spark.Compiler.CSharp.ChunkVisitors
                 var autoCount = detect.Add(variableName + "Count");
                 var autoIsFirst = detect.Add(variableName + "IsFirst");
                 var autoIsLast = detect.Add(variableName + "IsLast");
+                var autoIsEven = detect.Add(variableName + "IsEven");
+                var autoIsOdd = detect.Add(variableName + "IsOdd");
+
                 detect.Accept(chunk.Body);
 
                 if (autoIsLast.Detected)
@@ -259,6 +262,16 @@ namespace Spark.Compiler.CSharp.ChunkVisitors
                 {
                     DeclareVariable(variableName + "IsFirst");
                     _source.WriteLine("bool {0}IsFirst = true;", variableName);
+                }
+                if (autoIsEven.Detected)
+                {
+                    DeclareVariable(variableName + "IsEven");
+                    _source.WriteLine("bool {0}IsEven = false;", variableName);
+                }
+                if (autoIsOdd.Detected)
+                {
+                    DeclareVariable(variableName + "IsOdd");
+                    _source.WriteLine("bool {0}IsOdd = true;", variableName);
                 }
                 if (autoCount.Detected)
                 {
@@ -292,6 +305,10 @@ namespace Spark.Compiler.CSharp.ChunkVisitors
                     _source.WriteLine("++{0}Index;", variableName);
                 if (autoIsFirst.Detected)
                     _source.WriteLine("{0}IsFirst = false;", variableName);
+                if (autoIsEven.Detected)
+                    _source.WriteLine("{0}IsEven = !{0}IsEven;", variableName);
+                if (autoIsOdd.Detected)
+                    _source.WriteLine("{0}IsOdd = !{0}IsOdd;", variableName);
                 CodeDefault();
 
                 AppendCloseBrace();
@@ -439,6 +456,14 @@ namespace Spark.Compiler.CSharp.ChunkVisitors
                             .WriteLine("))");
                     }
                     break;
+                case ConditionalType.Unless:
+                    {
+                        CodeIndent(chunk)
+                            .Write("if (!(")
+                            .WriteCode(chunk.Condition)
+                            .WriteLine("))");
+                    }
+                    break;
                 default:
                     throw new CompilerException("Unexpected conditional type " + chunk.Type);
             }
@@ -464,7 +489,7 @@ namespace Spark.Compiler.CSharp.ChunkVisitors
 
             _source
                 .WriteLine("try");
-            
+
             AppendOpenBrace();
             Accept(chunk.Body);
             AppendCloseBrace();
@@ -487,7 +512,7 @@ namespace Spark.Compiler.CSharp.ChunkVisitors
             AppendCloseBrace();
         }
 
-        
+
     }
 
 }

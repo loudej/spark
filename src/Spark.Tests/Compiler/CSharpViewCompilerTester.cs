@@ -13,7 +13,7 @@
 // limitations under the License.
 // 
 using System.Collections.Generic;
-using NUnit.Framework.SyntaxHelpers;
+
 using Spark.Compiler;
 using NUnit.Framework;
 using Spark.Compiler.CSharp;
@@ -148,14 +148,16 @@ namespace Spark.Tests.Compiler
         }
 
 
-        [Test, ExpectedException(typeof(BatchCompilerException))]
+        [Test]
         public void ProvideFullException()
         {
             var compiler = new CSharpViewCompiler { BaseClass = "Spark.SparkViewBase" };
-            DoCompileView(compiler, new Chunk[]
-                                    {
-                                        new SendExpressionChunk {Code = "NoSuchVariable"}
-                                    });
+            Assert.That(() =>
+                        DoCompileView(compiler, new Chunk[]
+                                                    {
+                                                        new SendExpressionChunk {Code = "NoSuchVariable"}
+                                                    }),
+                        Throws.TypeOf<BatchCompilerException>());
         }
 
         [Test]
@@ -215,6 +217,44 @@ namespace Spark.Tests.Compiler
             var instance = compiler.CreateInstance();
             var contents = instance.RenderView();
             Assert.AreEqual("<p>wasfalse</p>", contents);
+        }
+
+        [Test]
+        public void UnlessTrueCondition()
+        {
+            var compiler = new CSharpViewCompiler { BaseClass = "Spark.SparkViewBase" };
+
+            var trueChunks = new Chunk[] { new SendLiteralChunk { Text = "wastrue" } };
+
+            DoCompileView(compiler, new Chunk[]
+                                    {
+                                        new SendLiteralChunk {Text = "<p>"},
+                                        new LocalVariableChunk{Name="arg", Value="5"},
+                                        new ConditionalChunk{Type=ConditionalType.Unless, Condition="arg==5", Body=trueChunks},
+                                        new SendLiteralChunk {Text = "</p>"}
+                                    });
+            var instance = compiler.CreateInstance();
+            var contents = instance.RenderView();
+            Assert.AreEqual("<p></p>", contents);
+        }
+
+        [Test]
+        public void UnlessFalseCondition()
+        {
+            var compiler = new CSharpViewCompiler { BaseClass = "Spark.SparkViewBase" };
+
+            var trueChunks = new Chunk[] { new SendLiteralChunk { Text = "wastrue" } };
+
+            DoCompileView(compiler, new Chunk[]
+                                    {
+                                        new SendLiteralChunk {Text = "<p>"},
+                                        new LocalVariableChunk{Name="arg", Value="5"},
+                                        new ConditionalChunk{Type=ConditionalType.Unless, Condition="arg==6", Body=trueChunks},
+                                        new SendLiteralChunk {Text = "</p>"}
+                                    });
+            var instance = compiler.CreateInstance();
+            var contents = instance.RenderView();
+            Assert.AreEqual("<p>wastrue</p>", contents);
         }
 
         [Test]
@@ -284,7 +324,7 @@ namespace Spark.Tests.Compiler
                                         new SendLiteralChunk{ Text = "Hello world"}
                                     });
             var instance = compiler.CreateInstance();
-            Assert.That(instance, Is.InstanceOfType(typeof(StubSparkView2)));
+            Assert.That(instance, Is.InstanceOf(typeof(StubSparkView2)));
         }
 
 
@@ -303,8 +343,8 @@ namespace Spark.Tests.Compiler
                                         new SendLiteralChunk {Text = "Hello world"}
                                     });
             var instance = compiler.CreateInstance();
-            Assert.That(instance, Is.InstanceOfType(typeof(StubSparkView2)));
-            Assert.That(instance, Is.InstanceOfType(typeof(StubSparkView2<Comment>)));
+            Assert.That(instance, Is.InstanceOf(typeof(StubSparkView2)));
+            Assert.That(instance, Is.InstanceOf(typeof(StubSparkView2<Comment>)));
         }
 
         [Test]
@@ -321,9 +361,9 @@ namespace Spark.Tests.Compiler
                                         new SendLiteralChunk {Text = "Hello world"}
                                     });
             var instance = compiler.CreateInstance();
-            Assert.That(instance, Is.InstanceOfType(typeof(StubSparkView2)));
-            Assert.That(instance, Is.InstanceOfType(typeof(StubSparkView2<Comment>)));
-            Assert.That(instance, Is.InstanceOfType(typeof(StubSparkView3<Comment, string>)));
+            Assert.That(instance, Is.InstanceOf(typeof(StubSparkView2)));
+            Assert.That(instance, Is.InstanceOf(typeof(StubSparkView2<Comment>)));
+            Assert.That(instance, Is.InstanceOf(typeof(StubSparkView3<Comment, string>)));
         }
 
         [Test]
@@ -338,8 +378,8 @@ namespace Spark.Tests.Compiler
                                         new MarkdownChunk {Body = innerChunks}
                                     });
 
-          Assert.That(compiler.SourceCode, Text.Contains("using(MarkdownOutputScope())"));
-          Assert.That(compiler.SourceCode, Text.Contains("Output.Write(\"*test*\");"));
+          Assert.That(compiler.SourceCode, Is.StringContaining("using(MarkdownOutputScope())"));
+          Assert.That(compiler.SourceCode, Is.StringContaining("Output.Write(\"*test*\");"));
 
           var instance = compiler.CreateInstance();
           var contents = instance.RenderView().Trim();

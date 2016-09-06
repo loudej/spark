@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
-using NUnit.Framework.SyntaxHelpers;
+
 using Rhino.Mocks;
 using Spark.Bindings;
 using Spark.Compiler;
@@ -20,7 +20,7 @@ namespace Spark.Tests.Bindings
         {
             var viewFolder = new InMemoryViewFolder { { "bindings.xml", "<bindings><element name='foo'>bar</element></bindings>" } };
             var provider = new DefaultBindingProvider();
-            var bindings = provider.GetBindings(viewFolder).ToList();
+            var bindings = provider.GetBindings(new BindingRequest(viewFolder)).ToList();
 
             Assert.That(bindings.Count, Is.EqualTo(1));
             Assert.That(bindings[0].ElementName, Is.EqualTo("foo"));
@@ -35,7 +35,7 @@ namespace Spark.Tests.Bindings
         {
             var viewFolder = new InMemoryViewFolder();
             var provider = new DefaultBindingProvider();
-            var bindings = provider.GetBindings(viewFolder).ToList();
+            var bindings = provider.GetBindings(new BindingRequest(viewFolder)).ToList();
 
             Assert.That(bindings.Count, Is.EqualTo(0));
         }
@@ -45,7 +45,7 @@ namespace Spark.Tests.Bindings
         {
             var viewFolder = new InMemoryViewFolder { { "bindings.xml", "<bindings><element name='foo'><start>bar</start><end>quux</end></element></bindings>" } };
             var provider = new DefaultBindingProvider();
-            var bindings = provider.GetBindings(viewFolder).ToList();
+            var bindings = provider.GetBindings(new BindingRequest(viewFolder)).ToList();
 
             Assert.That(bindings.Count, Is.EqualTo(1));
             Assert.That(bindings[0].ElementName, Is.EqualTo("foo"));
@@ -62,25 +62,25 @@ namespace Spark.Tests.Bindings
         {
             var viewFolder = new InMemoryViewFolder { { "bindings.xml", "<bindings><element name='foo'><start>#bar;</start><end>#quux;</end></element></bindings>" } };
             var provider = new DefaultBindingProvider();
-            var bindings = provider.GetBindings(viewFolder).ToList();
+            var bindings = provider.GetBindings(new BindingRequest(viewFolder)).ToList();
             Assert.That(bindings[0].Phrases.All(phrase => phrase.Type == BindingPhrase.PhraseType.Statement));
         }
 
 
-        [Test, ExpectedException(typeof(CompilerException))]
+        [Test]
         public void ChildReferenceMayNotAppearInStartPhrase()
         {
             var viewFolder = new InMemoryViewFolder { { "bindings.xml", "<bindings><element name='foo'><start>child::*</start><end>foo</end></element></bindings>" } };
             var provider = new DefaultBindingProvider();
-            provider.GetBindings(viewFolder).ToList();
+            Assert.That(() => provider.GetBindings(new BindingRequest(viewFolder)).ToList(), Throws.TypeOf<CompilerException>());
         }
 
-        [Test, ExpectedException(typeof(CompilerException))]
+        [Test]
         public void ChildReferenceMayNotAppearInEndPhrase()
         {
             var viewFolder = new InMemoryViewFolder { { "bindings.xml", "<bindings><element name='foo'><start>foo</start><end>child::*</end></element></bindings>" } };
             var provider = new DefaultBindingProvider();
-            provider.GetBindings(viewFolder).ToList();
+            Assert.That(() => provider.GetBindings(new BindingRequest(viewFolder)).ToList(), Throws.TypeOf<CompilerException>());
         }
     }
 }

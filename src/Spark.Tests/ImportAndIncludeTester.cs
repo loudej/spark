@@ -44,9 +44,9 @@ namespace Spark.Tests
         {
             var view = CreateView(new InMemoryViewFolder
                                  {
-                                     {"importing\\index.spark", "<p><use import='extra.spark'/>hello ${name}</p>"},
-                                     {"importing\\extra.spark", "this is imported <global name='\"world\"'/>"}
-                                 }, "importing\\index.spark");
+                                     {Path.Combine("importing", "index.spark"), "<p><use import='extra.spark'/>hello ${name}</p>"},
+                                     {Path.Combine("importing", "extra.spark"), "this is imported <global name='\"world\"'/>"}
+                                 }, Path.Combine("importing", "index.spark"));
 
             var contents = view.RenderView();
             Assert.AreEqual("<p>hello world</p>", contents);
@@ -58,9 +58,9 @@ namespace Spark.Tests
         {
             var view = CreateView(new InMemoryViewFolder
                                  {
-                                     {"importing\\index.spark", "<p><use import='extra.spark'/>hello ${name}</p>"},
-                                     {"shared\\extra.spark", "this is imported <global name='\"world\"'/>"}
-                                 }, "importing\\index.spark");
+                                     {Path.Combine("importing", "index.spark"), "<p><use import='extra.spark'/>hello ${name}</p>"},
+                                     {Path.Combine("shared", "extra.spark"), "this is imported <global name='\"world\"'/>"}
+                                 }, Path.Combine("importing", "index.spark"));
             var contents = view.RenderView();
             Assert.AreEqual("<p>hello world</p>", contents);
             Assert.IsFalse(contents.Contains("import"));
@@ -71,10 +71,10 @@ namespace Spark.Tests
         {
             var view = CreateView(new InMemoryViewFolder
                                  {
-                                     {"importing\\index.spark", "<p>${foo()} ${name}</p><use import='extra'/><use import='another'/>"},
-                                     {"importing\\another.spark", "<macro name='foo'>hello</macro>"},
-                                     {"shared\\extra.spark", "this is imported <global name='\"world\"'/>"}
-                                 }, "importing\\index.spark");
+                                     {Path.Combine("importing", "index.spark"), "<p>${foo()} ${name}</p><use import='extra'/><use import='another'/>"},
+                                     {Path.Combine("importing", "another.spark"), "<macro name='foo'>hello</macro>"},
+                                     {Path.Combine("shared", "extra.spark"), "this is imported <global name='\"world\"'/>"}
+                                 }, Path.Combine("importing", "index.spark"));
 
             var contents = view.RenderView();
             Assert.AreEqual("<p>hello world</p>", contents);
@@ -86,10 +86,10 @@ namespace Spark.Tests
         {
             var view = CreateView(new InMemoryViewFolder
                                       {
-                                          {"importing\\index.spark", "<p>${foo()} ${name}</p>"},
-                                          {"importing\\_global.spark", "<macro name='foo'>hello</macro>"},
-                                          {"shared\\_global.spark", "this is imported <global name='\"world\"'/>"}
-                                      }, "importing\\index.spark");
+                                          {Path.Combine("importing", "index.spark"), "<p>${foo()} ${name}</p>"},
+                                          {Path.Combine("importing", "_global.spark"), "<macro name='foo'>hello</macro>"},
+                                          {Path.Combine("shared", "_global.spark"), "this is imported <global name='\"world\"'/>"}
+                                      }, Path.Combine("importing", "index.spark"));
 
             var contents = view.RenderView();
             Assert.AreEqual("<p>hello world</p>", contents);
@@ -102,21 +102,28 @@ namespace Spark.Tests
         {
             var view = CreateView(new InMemoryViewFolder
                                       {
-                                          {"including\\index.spark", "<p><include href='stuff.spark'/></p>"},
-                                          {"including\\stuff.spark", "hello world"}
-                                      }, "including\\index.spark");
+                                          {Path.Combine("including", "index.spark"), "<p><include href='stuff.spark'/></p>"},
+                                          {Path.Combine("including", "stuff.spark"), "hello world"}
+                                      }, Path.Combine("including", "index.spark"));
             var contents = view.RenderView();
             Assert.AreEqual("<p>hello world</p>", contents);
         }
 
-        [Test, ExpectedException(typeof(CompilerException))]
+        [Test]
         public void MissingFileThrowsException()
         {
-            var view = CreateView(new InMemoryViewFolder
-                                      {
-                                          {"including\\index.spark", "<p><include href='stuff.spark'/></p>"}
-                                      }, "including\\index.spark");
-            view.RenderView();
+            Assert.That(() =>
+                            {
+                                var view = CreateView(new InMemoryViewFolder
+                                                          {
+                                                              {
+                                                                  Path.Combine("including", "index.spark"),
+                                                                  "<p><include href='stuff.spark'/></p>"
+                                                                  }
+                                                          }, Path.Combine("including", "index.spark"));
+                                view.RenderView();
+                            },
+                        Throws.TypeOf<CompilerException>());
         }
 
 
@@ -125,8 +132,8 @@ namespace Spark.Tests
         {
             var view = CreateView(new InMemoryViewFolder
                                       {
-                                          {"including\\index.spark", "<p><include href='stuff.spark'><fallback/></include></p>"}
-                                      }, "including\\index.spark");
+                                          {Path.Combine("including", "index.spark"), "<p><include href='stuff.spark'><fallback/></include></p>"}
+                                      }, Path.Combine("including", "index.spark"));
             var contents = view.RenderView();
             Assert.AreEqual("<p></p>", contents);
         }
@@ -136,8 +143,8 @@ namespace Spark.Tests
         {
             var view = CreateView(new InMemoryViewFolder
                                       {
-                                          {"including\\index.spark", "<p><include href='stuff.spark'><fallback>hello world</fallback></include></p>"}
-                                      }, "including\\index.spark");
+                                          {Path.Combine("including", "index.spark"), "<p><include href='stuff.spark'><fallback>hello world</fallback></include></p>"}
+                                      }, Path.Combine("including", "index.spark"));
             var contents = view.RenderView();
             Assert.AreEqual("<p>hello world</p>", contents);
         }
@@ -147,9 +154,9 @@ namespace Spark.Tests
         {
             var view = CreateView(new InMemoryViewFolder
                                       {
-                                          {"including\\index.spark", "<p><include href='stuff.spark'><fallback>hello world</fallback></include></p>"},
-                                          {"including\\stuff.spark", "another file"}
-                                      }, "including\\index.spark");
+                                          {Path.Combine("including", "index.spark"), "<p><include href='stuff.spark'><fallback>hello world</fallback></include></p>"},
+                                          {Path.Combine("including", "stuff.spark"), "another file"}
+                                      }, Path.Combine("including", "index.spark"));
             var contents = view.RenderView();
             Assert.AreEqual("<p>another file</p>", contents);
         }
@@ -159,9 +166,9 @@ namespace Spark.Tests
         {
             var view = CreateView(new InMemoryViewFolder
                                       {
-                                          {"including\\index.spark", "<p><include href='stuff.spark'><fallback><include href='other.spark'/></fallback></include></p>"},
-                                          {"including\\other.spark", "other file"}
-                                      }, "including\\index.spark");
+                                          {Path.Combine("including", "index.spark"), "<p><include href='stuff.spark'><fallback><include href='other.spark'/></fallback></include></p>"},
+                                          {Path.Combine("including", "other.spark"), "other file"}
+                                      }, Path.Combine("including", "index.spark"));
             var contents = view.RenderView();
             Assert.AreEqual("<p>other file</p>", contents);
         }
@@ -171,9 +178,9 @@ namespace Spark.Tests
         {
             var view = CreateView(new InMemoryViewFolder
                                       {
-                                          {"including\\index.spark", "<p><include href='../lib/other.spark'/></p>"},
-                                          {"lib\\other.spark", "other file"}
-                                      }, "including\\index.spark");
+                                          {Path.Combine("including", "index.spark"), "<p><include href='../lib/other.spark'/></p>"},
+                                          {Path.Combine("lib", "other.spark"), "other file"}
+                                      }, Path.Combine("including", "index.spark"));
             var contents = view.RenderView();
             Assert.AreEqual("<p>other file</p>", contents);
         }
@@ -182,10 +189,10 @@ namespace Spark.Tests
         {
             var view = CreateView(new InMemoryViewFolder
                                       {
-                                          {"including\\index.spark", "<p><include href='../lib/other.spark'/></p>"},
-                                          {"lib\\other.spark", "other <include href='third.spark'/> file"},
-                                          {"lib\\third.spark", "third file"}
-                                      }, "including\\index.spark");
+                                          {Path.Combine("including", "index.spark"), "<p><include href='../lib/other.spark'/></p>"},
+                                          {Path.Combine("lib", "other.spark"), "other <include href='third.spark'/> file"},
+                                          {Path.Combine("lib", "third.spark"), "third file"}
+                                      }, Path.Combine("including", "index.spark"));
             var contents = view.RenderView();
             Assert.AreEqual("<p>other third file file</p>", contents);
         }
@@ -195,11 +202,11 @@ namespace Spark.Tests
         {
             var view = CreateView(new InMemoryViewFolder
                                       {
-                                          {"including\\index.spark", "<p xmlns:x='http://www.w3.org/2001/XInclude'><include/><x:include href='../lib/other.spark'/></p>"},
-                                          {"lib\\other.spark", "other file"}
-                                      }, "including\\index.spark");
+                                          {Path.Combine("including", "index.spark"), "<p xmlns:x='http://www.w3.org/2001/XInclude'><include/><x:include href='../lib/other.spark'/></p>"},
+                                          {Path.Combine("lib", "other.spark"), "other file"}
+                                      }, Path.Combine("including", "index.spark"));
             var contents = view.RenderView();
-            Assert.AreEqual("<p xmlns:x=\"http://www.w3.org/2001/XInclude\"><include/>other file</p>", contents);
+            Assert.AreEqual("<p xmlns:x='http://www.w3.org/2001/XInclude\'><include></include>other file</p>", contents);
         }
 
         [Test]
@@ -207,9 +214,9 @@ namespace Spark.Tests
         {
             var view = CreateView(new InMemoryViewFolder
                                       {
-                                          {"including\\index.spark", "<p><include href='item.spark' parse='text'/></p>"},
-                                          {"including\\item.spark", "<li>at&t</li>"}
-                                      }, "including\\index.spark");
+                                          {Path.Combine("including", "index.spark"), "<p><include href='item.spark' parse='text'/></p>"},
+                                          {Path.Combine("including", "item.spark"), "<li>at&t</li>"}
+                                      }, Path.Combine("including", "index.spark"));
             var contents = view.RenderView();
             Assert.AreEqual("<p>&lt;li&gt;at&amp;t&lt;/li&gt;</p>", contents);
         }
@@ -219,9 +226,9 @@ namespace Spark.Tests
         {
             var view = CreateView(new InMemoryViewFolder
                                       {
-                                          {"including\\index.spark", "<p><include href='jquery.templ.htm' parse='html'/></p>"},
-                                          {"including\\jquery.templ.htm", "<h4>${Title}</h4>"}
-                                      }, "including\\index.spark");
+                                          {Path.Combine("including", "index.spark"), "<p><include href='jquery.templ.htm' parse='html'/></p>"},
+                                          {Path.Combine("including", "jquery.templ.htm"), "<h4>${Title}</h4>"}
+                                      }, Path.Combine("including", "index.spark"));
             var contents = view.RenderView();
             Assert.AreEqual("<p><h4>${Title}</h4></p>", contents);
         }

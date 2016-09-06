@@ -20,13 +20,15 @@
 // <author>John Gietzen</author>
 //-------------------------------------------------------------------------
 
+using System.Linq;
+
 namespace Spark.Tests
 {
     using System;
     using System.Collections.Generic;
     using System.Text;
     using NUnit.Framework;
-    using NUnit.Framework.SyntaxHelpers;
+
     using Rhino.Mocks;
     using Spark.Compiler;
     using Spark.FileSystem;
@@ -51,8 +53,7 @@ namespace Spark.Tests
             factory = new StubViewFactory { Engine = engine };
 
             sb = new StringBuilder();
-
-
+           
             mocks = new MockRepository();
 
         }
@@ -74,7 +75,7 @@ namespace Spark.Tests
         {
             mocks.ReplayAll();
 
-            factory.RenderView(MakeViewContext("index", null));
+            factory.RenderView(MakeViewContext("Index", null));
 
             mocks.VerifyAll();
         }
@@ -142,23 +143,6 @@ namespace Spark.Tests
             Assert.That(content.Contains("<p>footer part two</p>"));
         }
 
-
-
-
-        [Test, Ignore("Library no longer references asp.net mvc directly")]
-        public void UsingHtmlHelper()
-        {
-
-            mocks.ReplayAll();
-
-            factory.RenderView(MakeViewContext("helpers", null));
-
-            mocks.VerifyAll();
-            string content = sb.ToString();
-            Assert.That(content.Contains("<p><a href=\"/Home/Sort\">Click me</a></p>"));
-            Assert.That(content.Contains("<p>foo&gt;bar</p>"));
-        }
-
         [Test]
         public void UsingPartialFile()
         {
@@ -202,23 +186,6 @@ namespace Spark.Tests
             string content = sb.ToString();
             Assert.That(content.Contains("<li class=\"odd\">one</li>"));
             Assert.That(content.Contains("<li class=\"even\">two</li>"));
-        }
-
-
-        [Test, Ignore("Library no longer references asp.net mvc directly")]
-        public void DeclaringViewDataAccessor()
-        {
-            mocks.ReplayAll();
-            //var comments = new[] { new Comment { Text = "foo" }, new Comment { Text = "bar" } };
-            var viewContext = MakeViewContext("viewdata", null/*, new { Comments = comments, Caption = "Hello world" }*/);
-
-            factory.RenderView(viewContext);
-
-            mocks.VerifyAll();
-            string content = sb.ToString();
-            Assert.That(content.Contains("<h1>Hello world</h1>"));
-            Assert.That(content.Contains("<p>foo</p>"));
-            Assert.That(content.Contains("<p>bar</p>"));
         }
 
         [Test]
@@ -277,6 +244,35 @@ namespace Spark.Tests
             Assert.That(content.Contains("<p>argisstillnot6</p>"));
         }
 
+        [Test]
+        public void UnlessElements()
+        {
+            mocks.ReplayAll();
+            var viewContext = MakeViewContext("unlesselement", null);
+            factory.RenderView(viewContext);
+            mocks.VerifyAll();
+
+            string content = sb.ToString();
+            Assert.That(!content.Contains("<unless"));
+
+            Assert.That(content.Contains("<p>argisnot6</p>"));
+            Assert.That(!content.Contains("<p>argis5</p>"));
+        }
+
+        [Test]
+        public void UnlessAttributes()
+        {
+            mocks.ReplayAll();
+            var viewContext = MakeViewContext("unlessattribute", null);
+            factory.RenderView(viewContext);
+            mocks.VerifyAll();
+
+            string content = sb.ToString();
+            Assert.That(!content.Contains("<unless"));
+
+            Assert.That(content.Contains("<p>argisnot6</p>"));
+            Assert.That(!content.Contains("<p>argis5</p>"));
+        }
 
         [Test]
         public void ChainingElseIfElement()
@@ -445,10 +441,10 @@ namespace Spark.Tests
                 "<p>1: Beta</p>",
                 "<p>2: Gamma</p>",
                 "<p>3: Delta</p>",
-                "<li ", "class=\"even\">Alpha</li>",
-                "<li ", "class=\"odd\">Beta</li>",
-                "<li ", "class=\"even\">Gamma</li>",
-                "<li ", "class=\"odd\">Delta</li>"
+                "<li ", "class='even'>Alpha</li>",
+                "<li ", "class='odd'>Beta</li>",
+                "<li ", "class='even'>Gamma</li>",
+                "<li ", "class='odd'>Delta</li>"
                 ));
         }
 
@@ -462,10 +458,10 @@ namespace Spark.Tests
 
             string content = sb.ToString().Replace(" ", "").Replace("\t", "").Replace("\r\n", "");
             Assert.That(content, Contains.InOrder(
-                "<tr><td>one</td><td>0</td><td>4</td><td>True</td><td>False</td></tr>",
-                "<tr><td>two</td><td>1</td><td>4</td><td>False</td><td>False</td></tr>",
-                "<tr><td>three</td><td>2</td><td>4</td><td>False</td><td>False</td></tr>",
-                "<tr><td>four</td><td>3</td><td>4</td><td>False</td><td>True</td></tr>"));
+                "<tr><td>one</td><td>0</td><td>4</td><td>True</td><td>False</td><td>False</td><td>True</td></tr>",
+                "<tr><td>two</td><td>1</td><td>4</td><td>False</td><td>False</td><td>True</td><td>False</td></tr>",
+                "<tr><td>three</td><td>2</td><td>4</td><td>False</td><td>False</td><td>False</td><td>True</td></tr>",
+                "<tr><td>four</td><td>3</td><td>4</td><td>False</td><td>True</td><td>True</td><td>False</td></tr>"));
         }
 
 
@@ -554,8 +550,8 @@ namespace Spark.Tests
 
             Assert.That(content, Contains.InOrder(
                 "<img src=\"/TestApp/content/images/etc.png\"/>",
-                "<script src=\"/TestApp/content/js/etc.js\"/>",
-                "<p class=\"~/blah.css\"/>"));
+                "<script src=\"/TestApp/content/js/etc.js\"></script>",
+                "<p class=\"~/blah.css\"></p>"));
         }
 
         [Test]
@@ -589,13 +585,13 @@ namespace Spark.Tests
         }
 
 
-        [Test, ExpectedException(typeof(CompilerException))]
+        [Test]
         public void AddViewDataDifferentTypes()
         {
             mocks.ReplayAll();
             var viewData = new StubViewData { { "comment", new Comment { Text = "Hello world" } } };
             var viewContext = MakeViewContext("addviewdatadifferenttypes", null, viewData);
-            factory.RenderView(viewContext);
+            Assert.That(() => factory.RenderView(viewContext), Throws.TypeOf<CompilerException>());
             mocks.VerifyAll();
         }
 
@@ -984,13 +980,13 @@ namespace Spark.Tests
 
             Assert.IsFalse(content.Contains("broken"));
             Assert.That(content, Contains.InOrder(
-                "<h1 class=\"one three\"/>",
-                "<h2/>",
-                "<h3 class=\" two three\"/>",
-                "<h4 class=\"one three\"/>",
-                "<h5 class=\"one two\"/>",
-                "<h6/>",
-                "<h7 class=\"one&two<three\"/>"));
+                "<h1 class=\"one three\"></h1>",
+                "<h2></h2>",
+                "<h3 class=\" two three\"></h3>",
+                "<h4 class=\"one three\"></h4>",
+                "<h5 class=\"one two\"></h5>",
+                "<h6></h6>",
+                "<h7 class=\"one&two<three\"></h7>"));
         }
 
 
@@ -1040,6 +1036,25 @@ namespace Spark.Tests
         {
             mocks.ReplayAll();
             var viewContext = MakeViewContext("IfAttributeWorksOnSpecialNodes", null);
+            factory.RenderView(viewContext);
+            mocks.VerifyAll();
+            string content = sb.ToString();
+
+            Assert.That(content, Contains.InOrder(
+                            "<p>name-0-alpha</p>",
+                            "<p>name-2-gamma</p>",
+                            "<span>one</span>",
+                            "<span>three</span>"));
+
+            Assert.IsFalse(content.Contains("beta"));
+            Assert.IsFalse(content.Contains("two"));
+        }
+
+        [Test]
+        public void UnlessAttributeWorksOnSpecialNodes()
+        {
+            mocks.ReplayAll();
+            var viewContext = MakeViewContext("UnlessAttributeWorksOnSpecialNodes", null);
             factory.RenderView(viewContext);
             mocks.VerifyAll();
             string content = sb.ToString();
@@ -1116,14 +1131,15 @@ namespace Spark.Tests
 
         }
 
-        [Test, ExpectedException(typeof(CompilerException))]
+        [Test]
         public void RecursivePartialsThrowCompilerException()
         {
             mocks.ReplayAll();
             var viewContext = MakeViewContext("RecursivePartialsThrowCompilerException", null);
-            factory.RenderView(viewContext);
+            Assert.That(() =>
+                        factory.RenderView(viewContext),
+                        Throws.TypeOf<CompilerException>());
         }
-
 
         [Test]
         public void NestedPartialsCanBackRenderUpAndReRenderDown()
@@ -1181,6 +1197,285 @@ namespace Spark.Tests
                 "all contain trailing spaces", "</code></pre>",
                 "<p>", "Regular Text.", "</p>",
                 "<pre><code>", "code block on the last line", "</code></pre>"));
+        }
+
+        [Test]
+        public void Ignore()
+        {
+            mocks.ReplayAll();
+            var viewContext = MakeViewContext("ignore", null);
+            factory.RenderView(viewContext);
+            mocks.VerifyAll();
+
+            string content = sb.ToString();
+
+            Assert.That(content, Contains.InOrder(
+                "<div>",
+                "Regular text ${This.isnt.code < 0}",
+                "<var dummy=\"This isn't a variable\" />",
+                "</div>"));
+            Assert.IsFalse(content.Contains("<ignore>"));
+            Assert.IsFalse(content.Contains("</ignore>"));
+        }
+
+        [Test]
+        public void Escape()
+        {
+            mocks.ReplayAll();
+            var viewContext = MakeViewContext("escape", null);
+            factory.RenderView(viewContext);
+            mocks.VerifyAll();
+
+            string content = sb.ToString();
+
+            Assert.That(content, Contains.InOrder(
+                "<div>",
+                "${Encoded.Escaped.with.a.dollar < 0}",
+                "${Encoded.Escaped.with.a.backslash < 0}",
+                "${Encoded.Escaped.with.a.backtick < 0}",
+                "</div>"));
+
+            Assert.That(content, Contains.InOrder(
+                "<div>",
+                "!{Unencoded.Escaped.with.a.dollar < 0}",
+                "!{Unencoded.Escaped.with.a.backslash < 0}",
+                "!{Unencoded.Escaped.with.a.backtick < 0}",
+                "</div>"));
+
+            Assert.That(content, Contains.InOrder(
+                "<div>",
+                "$!{Encoded.Silent.Nulls.Escaped.with.a.dollar < 0}",
+                "$!{Encoded.Silent.Nulls.Escaped.with.a.backslash < 0}",
+                "$!{Encoded.Silent.Nulls.Escaped.with.a.backtick < 0}",
+                "</div>"));
+        }
+
+        [Test]
+        public void PreserveSingleQuotes()
+        {
+            mocks.ReplayAll();
+            var viewContext = MakeViewContext("preserveSingleQuotes", null);
+            factory.RenderView(viewContext);
+            mocks.VerifyAll();
+
+            string content = sb.ToString();
+
+            Assert.That(content, Is.EqualTo(@"<img attr='something; other=""value1, value2""'/>"));
+        }
+
+        [Test]
+        public void PreserveDoubleQuotes()
+        {
+            mocks.ReplayAll();
+            var viewContext = MakeViewContext("preserveDoubleQuotes", null);
+            factory.RenderView(viewContext);
+            mocks.VerifyAll();
+
+            string content = sb.ToString();
+
+            Assert.That(content, Is.EqualTo(@"<img attr=""something; other='value1, value2'""/>"));
+        }
+
+
+        [Test]
+        public void ShadeFileRenders()
+        {
+            mocks.ReplayAll();
+            var viewContext = MakeViewContext("ShadeFileRenders", null);
+            factory.RenderView(viewContext, Constants.DotShade);
+            mocks.VerifyAll();
+
+            var content = sb.ToString();
+
+            Assert.That(content, Contains.InOrder(
+                "<html>",
+                "<head>", 
+                "<title>", 
+                "offset test",
+                "</title>", 
+                "<body>", 
+                "<div class=\"container\">", 
+                "<h1 id=\"top\">", 
+                "offset test",
+                "</h1>",
+                "</div>",
+                "</body>",
+                "</html>"));
+        }
+
+        [Test]
+        public void ShadeEvaluatesExpressions()
+        {
+            mocks.ReplayAll();
+            var viewContext = MakeViewContext("ShadeEvaluatesExpressions", null);
+            factory.RenderView(viewContext, Constants.DotShade);
+            mocks.VerifyAll();
+
+            var content = sb.ToString();
+
+            Assert.That(content, Contains.InOrder(
+                "<p>",
+                "<span>",
+                "8",
+                "</span>",
+                "<span>",
+                "2", " and ", "7",
+                "</span>",
+                "</p>"));
+        }
+
+        [Test]
+        public void ShadeSupportsAttributesAndMayTreatSomeElementsAsSpecialNodes()
+        {
+            mocks.ReplayAll();
+            var viewContext = MakeViewContext("ShadeSupportsAttributesAndMayTreatSomeElementsAsSpecialNodes", null);
+            factory.RenderView(viewContext, Constants.DotShade);
+            mocks.VerifyAll();
+
+            var content = sb.ToString();
+
+            Assert.That(content, Contains.InOrder(
+                "<ul class=\"nav\">",
+                "<li>Welcome</li>",
+                "<li>to</li>",
+                "<li>the</li>",
+                "<li>Machine</li>",
+                "</ul>",
+                "<p>",
+                "<span>4</span>",
+                "</p>"));
+        }
+
+        [Test]
+        public void ShadeCodeMayBeDashOrAtBraced()
+        {
+            mocks.ReplayAll();
+            var viewContext = MakeViewContext("ShadeCodeMayBeDashOrAtBraced", null);
+            factory.RenderView(viewContext, Constants.DotShade);
+            mocks.VerifyAll();
+
+            var content = sb.ToString();
+
+            Assert.That(content, Contains.InOrder(
+                "<ul>",
+                "<li>emocleW</li>",
+                "<li>ot</li>",
+                "<li>eht</li>",
+                "<li>enihcaM</li>",
+                "</ul>"));
+        }
+
+
+        [Test]
+        public void ShadeTextMayContainExpressions()
+        {
+            mocks.ReplayAll();
+            var viewContext = MakeViewContext("ShadeTextMayContainExpressions", null);
+            factory.RenderView(viewContext, Constants.DotShade);
+            mocks.VerifyAll();
+
+            var content = sb.ToString();
+
+            Assert.That(content, Contains.InOrder(
+                "<p>",
+                "<span>8</span>",
+                "<span>2 and 7</span>",
+                "</p>"));
+        }
+
+        [Test]
+        public void TextOrientedAttributesApplyToVarAndSet()
+        {
+            mocks.ReplayAll();
+            ((SparkSettings)engine.Settings).AttributeBehaviour = AttributeBehaviour.TextOriented;
+            var viewContext = MakeViewContext("TextOrientedAttributesApplyToVarAndSet", null);
+            factory.RenderView(viewContext, Constants.DotSpark);
+            mocks.VerifyAll();
+
+            var content = sb.ToString();
+            
+            Assert.That(content, Contains.InOrder(
+                "<p>String:HelloWorld</p>",
+                "<p>Int32:42</p>"));
+        }
+
+        [Test]
+        public void TextOrientedAttributesApplyToUseFile()
+        {
+            mocks.ReplayAll();
+            ((SparkSettings)engine.Settings).AttributeBehaviour = AttributeBehaviour.TextOriented;
+            var viewContext = MakeViewContext("TextOrientedAttributesApplyToUseFile", null);
+            factory.RenderView(viewContext, Constants.DotSpark);
+            mocks.VerifyAll();
+
+            var content = sb.ToString();
+
+            Assert.That(content, Contains.InOrder(
+                "<span>Hello</span>",
+                "<span>Hello World!</span>",
+                "<span>42</span>"));
+        }
+
+        [Test]
+        public void TextOrientedAttributesApplyToDefault()
+        {
+            mocks.ReplayAll();
+            ((SparkSettings)engine.Settings).AttributeBehaviour = AttributeBehaviour.TextOriented;
+            var viewContext = MakeViewContext("TextOrientedAttributesApplyToDefault", null);
+            factory.RenderView(viewContext, Constants.DotSpark);
+            mocks.VerifyAll();
+
+            var content = sb.ToString();
+
+            Assert.That(content, Contains.InOrder(
+                "<p>String:World</p>",
+                "<p>String:Hello World!</p>",
+                "<p>Int32:42</p>"));
+        }
+
+
+        [Test]
+        public void TextOrientedAttributesApplyToGlobal()
+        {
+            mocks.ReplayAll();
+            ((SparkSettings)engine.Settings).AttributeBehaviour = AttributeBehaviour.TextOriented;
+            var viewContext = MakeViewContext("TextOrientedAttributesApplyToGlobal", null);
+            factory.RenderView(viewContext, Constants.DotSpark);
+            mocks.VerifyAll();
+
+            var content = sb.ToString();
+
+            Assert.That(content, Contains.InOrder(
+                "<p>String:World</p>",
+                "<p>String:Hello World!</p>",
+                "<p>Int32:42</p>"));
+        }
+
+
+        [Test]
+        public void ShadeElementsMayStackOnOneLine()
+        {
+            mocks.ReplayAll();
+            var viewContext = MakeViewContext("ShadeElementsMayStackOnOneLine", null);
+            factory.RenderView(viewContext, Constants.DotShade);
+            mocks.VerifyAll();
+
+            var content = sb.ToString();
+
+            Assert.That(content, Contains.InOrder(
+                "<html>",
+                "<head>",
+                "<title>",
+                "offset test",
+                "</title>",
+                "<body>",
+                "<div class=\"container\">",
+                "<h1 id=\"top\">",
+                "offset test",
+                "</h1>",
+                "</div>",
+                "</body>",
+                "</html>"));
         }
     }
 }

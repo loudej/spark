@@ -38,6 +38,7 @@ namespace Spark.Parser.Markup
             var Quot = Ch('\"');
             var Lt = Ch('<');
             var Gt = Ch('>');
+            var NotLt = ChNot('<');
 
 
             //var CombiningChar = Ch('*');
@@ -81,7 +82,16 @@ namespace Spark.Parser.Markup
 
             Statement = StatementNode1.Or(StatementNode2);
 
+            var EscapedCode1 = TkCode(Ch("\\${").Or(Ch("$${")).Or(Ch("`${"))).And(Expression).And(TkCode(Ch('}')))
+                .Build(hit => new TextNode("${" + hit.Left.Down + "}"));
 
+            var EscapedCode2 = TkCode(Ch("\\!{").Or(Ch("!!{")).Or(Ch("`!{"))).And(Expression).And(TkCode(Ch('}')))
+                .Build(hit => new TextNode("!{" + hit.Left.Down + "}"));
+
+            var EscapedCode3 = TkCode(Ch("\\$!{").Or(Ch("$$!{")).Or(Ch("`$!{"))).And(Expression).And(TkCode(Ch('}')))
+                .Build(hit => new TextNode("$!{" + hit.Left.Down + "}"));
+
+            EscapedCode = EscapedCode1.Or(EscapedCode2).Or(EscapedCode3);
 
             // Syntax 1: ${csharp_expression}
             var Code1 = TkCode(Ch("${")).And(Expression).And(TkCode(Ch('}')))
@@ -119,14 +129,25 @@ namespace Spark.Parser.Markup
             var AttValueSingle = TkAttQuo(Apos).And(Rep(AsNode(AttValueSingleText).Or(EntityRefOrAmpersand).Or(AsNode(Code)).Or(AsNode(Condition)).Or(LessThanTextNode).Paint())).And(TkAttQuo(Apos));
             var AttValueDoubleText = TkAttVal(Rep1(ChNot('<', '&', '\"').Unless(Code).Unless(Condition))).Build(hit => new TextNode(hit));
             var AttValueDouble = TkAttQuo(Quot).And(Rep(AsNode(AttValueDoubleText).Or(EntityRefOrAmpersand).Or(AsNode(Code)).Or(AsNode(Condition)).Or(LessThanTextNode).Paint())).And(TkAttQuo(Quot));
-            var AttValue = AttValueSingle.Or(AttValueDouble).Left().Down();
-
+            var AttValueQuoted = AttValueSingle.Or(AttValueDouble);
 
             //[41]   	Attribute	   ::=   	 Name  Eq  AttValue  
             Attribute =
-                TkAttNam(Name).And(TkAttDelim(Eq)).And(AttValue)
-                .Build(hit => new AttributeNode(hit.Left.Left, hit.Down)).Paint<AttributeNode, Node>();
+                TkAttNam(Name).And(TkAttDelim(Eq)).And(AttValueQuoted)
+                    .Build(hit => new AttributeNode(hit.Left.Left, hit.Down.Down, hit.Down.Left.Down)).Paint<AttributeNode, Node>();
 
+            Ignore =
+                Opt(Ch("\r\n").Or(Ch("\n")).And(StringOf(Ch(char.IsWhiteSpace).Unless(Ch('\r', '\n'))))).And(TkTagDelim(Lt)).And(TkEleNam(Ch("ignore"))).And(TkTagDelim(Gt)).And(Rep(ChNot('<').Or(Lt.IfNext(ChNot("/ignore>"))))).And(Ch("</ignore>"))
+                .Build(hit =>
+                {
+                    var node = new SpecialNode(new ElementNode(
+                        hit.Left.Left.Left.Down,
+                        new List<AttributeNode>(),
+                        false,
+                        hit.Left.Left.Left.Left.Left == null ? string.Empty : hit.Left.Left.Left.Left.Left.Left + hit.Left.Left.Left.Left.Left.Down));
+                    node.Body = new List<Node> { new TextNode(hit.Left.Down) };
+                    return node;
+                });
 
             //[40]   	STag	   ::=   	'<' Name (S  Attribute)* S? '>'
             //[44]   	EmptyElemTag	   ::=   	'<' Name (S  Attribute)* S? '/>'
@@ -144,7 +165,7 @@ namespace Spark.Parser.Markup
                 .Build(hit => new EndElementNode(hit.Left.Left.Down, hit.Left.Left.Left.Left == null ? string.Empty : hit.Left.Left.Left.Left.Left + hit.Left.Left.Left.Left.Down));
 
             Text =
-                Rep1(ChNot('&', '<').Unless(Statement).Unless(Code).Unless(Element).Unless(EndElement))
+                Rep1(ChNot('&', '<').Unless(Statement).Unless(Code).Unless(EscapedCode).Unless(Ignore).Unless(Element).Unless(EndElement))
                 .Build(hit => new TextNode(hit));
 
             //[15]   	Comment	   ::=   	'<!--' ((Char - '-') | ('-' (Char - '-')))* '-->'
@@ -222,7 +243,9 @@ namespace Spark.Parser.Markup
                 .Build(hit => new ProcessingInstructionNode { Name = hit.Left.Left.Left.Down, Body = new string(hit.Left.Down.ToArray()) });
 
 
-            AnyNode = AsNode(Element).Paint()
+            AnyNode = AsNode(Ignore).Paint()
+                .Or(AsNode(EscapedCode).Paint())
+                .Or(AsNode(Element).Paint())
                 .Or(AsNode(EndElement).Paint())
                 .Or(AsNode(Text).Paint())
                 .Or(EntityRefOrAmpersand.Paint())
@@ -245,6 +268,7 @@ namespace Spark.Parser.Markup
         public ParseAction<DoctypeNode> DoctypeDecl;
         public ParseAction<TextNode> Text;
         public ParseAction<EntityNode> EntityRef;
+        public ParseAction<SpecialNode> Ignore;
         public ParseAction<ElementNode> Element;
         public ParseAction<EndElementNode> EndElement;
         public ParseAction<AttributeNode> Attribute;
@@ -252,6 +276,7 @@ namespace Spark.Parser.Markup
         public ParseAction<ProcessingInstructionNode> ProcessingInstruction;
         public ParseAction<XMLDeclNode> XMLDecl;
 
+        public ParseAction<TextNode> EscapedCode;
         public ParseAction<ExpressionNode> Code;
         public ParseAction<StatementNode> Statement;
 

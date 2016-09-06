@@ -47,13 +47,48 @@ namespace Spark.Tests.Visitors
         {
             var elt = new ElementNode("img", new[]
                                                  {
-                                                     new AttributeNode("href", new []{new TextNode("urn:picture".ToArray())}),
-                                                     new AttributeNode("alt", new Node[]{new TextNode("A Picture".ToArray()), new EntityNode("amp")})
+                                                     new AttributeNode("href", '"', new []{new TextNode("urn:picture".ToArray())}),
+                                                     new AttributeNode("alt", '"', new Node[]{new TextNode("A Picture".ToArray()), new EntityNode("amp")})
                                                  }, true);
             var visitor = new ChunkBuilderVisitor(new VisitorContext());
             visitor.Accept(elt);
             Assert.AreEqual(1, visitor.Chunks.Count);
             Assert.AreEqual("<img href=\"urn:picture\" alt=\"A Picture&amp;\"/>", ((SendLiteralChunk)visitor.Chunks[0]).Text);
+        }
+
+        [TestCase("area")]
+        [TestCase("base")]
+        [TestCase("br")]
+        [TestCase("col")]
+        [TestCase("command")]
+        [TestCase("embed")]
+        [TestCase("hr")]
+        [TestCase("img")]
+        [TestCase("input")]
+        [TestCase("keygen")]
+        [TestCase("link")]
+        [TestCase("meta")]
+        [TestCase("param")]
+        [TestCase("source")]
+        [TestCase("track")]
+        [TestCase("wbr")]
+        public void VoidElementsSelfClose(string tagName)
+        {
+            var elt = new ElementNode(tagName, new AttributeNode[] { }, true);
+            var visitor = new ChunkBuilderVisitor(new VisitorContext());
+            visitor.Accept(elt);
+            Assert.AreEqual(1, visitor.Chunks.Count());
+            Assert.AreEqual(string.Format("<{0}/>", tagName), ((SendLiteralChunk)visitor.Chunks[0]).Text);
+        }
+
+        [Test]
+        public void NonVoidElementDoesNotSelfClose()
+        {
+            var elt = new ElementNode("span", new AttributeNode[]{ }, true);
+            var visitor = new ChunkBuilderVisitor(new VisitorContext());
+            visitor.Accept(elt);
+            Assert.AreEqual(1, visitor.Chunks.Count());
+            Assert.AreEqual("<span></span>", ((SendLiteralChunk)visitor.Chunks[0]).Text);
         }
 
         [Test]

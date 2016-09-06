@@ -56,7 +56,7 @@ namespace Spark.Ruby.Tests
 
         private string ExecuteView(StubViewData viewData)
         {
-            var view = (StubSparkView)Activator.CreateInstance(_compiler.CompiledType);
+            var view = FastActivator<StubSparkView>.New(_compiler.CompiledType);
             _languageFactory.InstanceCreated(_compiler, view);
             view.ViewData = viewData;
             var contents = new StringWriter();
@@ -71,7 +71,7 @@ namespace Spark.Ruby.Tests
         {
             var chunks = Chunks(new SendLiteralChunk { Text = "Hello" });
             _compiler.CompileView(chunks, chunks);
-            var view = (IScriptingSparkView)Activator.CreateInstance(_compiler.CompiledType);
+            var view = FastActivator<IScriptingSparkView>.New(_compiler.CompiledType);
             var source = _compiler.SourceCode;
             var script = view.ScriptSource;
             Assert.IsNotNull(source);
@@ -357,6 +357,24 @@ namespace Spark.Ruby.Tests
             _compiler.CompileView(chunks, chunks);
             var contents = ExecuteView();
             Assert.AreEqual("aok1ok2b", contents);
+        }
+
+        [Test]
+        public void ConditionalChunkUnlessNegates()
+        {
+            var condition1 = new ConditionalChunk { Condition = "x != 12", Type = ConditionalType.Unless };
+            condition1.Body.Add(new SendLiteralChunk { Text = "ok1" });
+            var condition2 = new ConditionalChunk { Condition = "x == 12", Type = ConditionalType.Unless };
+            condition2.Body.Add(new SendLiteralChunk { Text = "fail" });
+            var chunks = Chunks(
+                new LocalVariableChunk { Name = "x", Value = "12" },
+                new SendLiteralChunk { Text = "a" },
+                condition1,
+                condition2,
+                new SendLiteralChunk { Text = "b" });
+            _compiler.CompileView(chunks, chunks);
+            var contents = ExecuteView();
+            Assert.AreEqual("aok1b", contents);
         }
 
         [Test]

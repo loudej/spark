@@ -16,6 +16,11 @@ obj/
 *.user
 *.ncb
 _ReSharper.*
+*.ReSharper
+*.dotCover
+*.ncrunchproject
+*crunchsolution*
+*.disposechecksettings
 
 # Ignore all MonoDevelop generated files.
 *.userprefs
@@ -33,3 +38,10 @@ src/Tools/SparkLanguagePackage/*_i.c
 src/Tools/SparkLanguagePackage/*_i.h
 src/Tools/SparkLanguagePackage/*_p.c
 src/Tools/SparkLanguagePackage/PackageLoadKey.h
+
+#NuGet
+packages/
+
+#ncrunch
+*ncrunch*
+*crunch*.local.xml

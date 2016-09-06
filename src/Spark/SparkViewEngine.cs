@@ -53,6 +53,8 @@ namespace Spark
             ResourcePathManager = container.GetService<IResourcePathManager>();
             TemplateLocator = container.GetService<ITemplateLocator>();
             CompiledViewHolder = container.GetService<ICompiledViewHolder>();
+            PartialProvider = container.GetService<IPartialProvider>();
+            PartialReferenceProvider = container.GetService<IPartialReferenceProvider>();
             SetViewFolder(container.GetService<IViewFolder>());
         }
 
@@ -91,6 +93,30 @@ namespace Spark
                 return _bindingProvider;
             }
             set { _bindingProvider = value; }
+        }
+
+        private IPartialProvider _partialProvider;
+        public IPartialProvider PartialProvider
+        {
+            get
+            {
+                if (_partialProvider == null)
+                    _partialProvider = new DefaultPartialProvider();
+                return _partialProvider;
+            }
+            set { _partialProvider = value; }
+        }
+
+        private IPartialReferenceProvider _partialReferenceProvider;
+        public IPartialReferenceProvider PartialReferenceProvider
+        {
+            get
+            {
+                if (_partialReferenceProvider == null)
+                    _partialReferenceProvider = new DefaultPartialReferenceProvider(() => PartialProvider);
+                return _partialReferenceProvider;
+            }
+            set { _partialReferenceProvider = value; }
         }
 
         private static IViewFolder CreateDefaultViewFolder()
@@ -294,7 +320,10 @@ namespace Spark
                 ExtensionFactory = ExtensionFactory,
                 Prefix = Settings.Prefix,
                 BindingProvider = BindingProvider,
-                ParseSectionTagAsSegment = Settings.ParseSectionTagAsSegment
+                ParseSectionTagAsSegment = Settings.ParseSectionTagAsSegment,
+                AttributeBehaviour = Settings.AttributeBehaviour,
+                PartialProvider = PartialProvider,
+                PartialReferenceProvider = PartialReferenceProvider
             };
         }
 
@@ -357,7 +386,7 @@ namespace Spark
                 var entry = new CompiledViewEntry
                                 {
                                     Descriptor = descriptor,
-                                    Loader = new ViewLoader(),
+                                    Loader = new ViewLoader { PartialProvider = PartialProvider, PartialReferenceProvider = PartialReferenceProvider },
                                     Compiler = new CSharpViewCompiler { CompiledType = type },
                                     Activator = ViewActivatorFactory.Register(type)
                                 };

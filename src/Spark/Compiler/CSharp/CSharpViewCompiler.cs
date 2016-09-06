@@ -77,7 +77,7 @@ namespace Spark.Compiler.CSharp
 
             source.WriteLine();
 
-            if (Descriptor != null)
+			if (Descriptor != null)
             {
                 // [SparkView] attribute
                 source.WriteLine("[global::Spark.SparkViewAttribute(");
@@ -86,7 +86,7 @@ namespace Spark.Compiler.CSharp
                 source.WriteLine("    Templates = new string[] {");
                 source.Write("      ").WriteLine(string.Join(",\r\n      ",
                                                                Descriptor.Templates.Select(
-                                                                   t => "\"" + t.Replace("\\", "\\\\") + "\"").ToArray()));
+                                                                   t => "\"" + SparkViewAttribute.ConvertToAttributeFormat(t) + "\"").ToArray()));
                 source.WriteLine("    })]");
             }
 
@@ -144,12 +144,18 @@ namespace Spark.Compiler.CSharp
             {
                 if (invokeLevel != renderLevel - 1)
                 {
-                    source.WriteLine("using (OutputScope()) {{RenderViewLevel{0}(); Content[\"view\"] = Output;}}", invokeLevel);
+                  source.WriteLine("using (OutputScope()) {{DelegateFirstRender(RenderViewLevel{0}); Content[\"view\"] = Output;}}", invokeLevel);
                 }
                 else
                 {
-
-                    source.WriteLine("        RenderViewLevel{0}();", invokeLevel);
+                    if (renderLevel <= 1)
+                    {
+                     source.WriteLine("        DelegateFirstRender(RenderViewLevel{0});", invokeLevel);
+                    }
+                     else
+                   {
+                     source.WriteLine("        RenderViewLevel{0}();", invokeLevel);
+                   }
                 }
             }
             source.RemoveIndent().WriteLine("}");
